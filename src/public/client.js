@@ -23,11 +23,13 @@ const render = async (root, state) => {
 const App = (state) => {
     let { rovers, apod, activeRover, activeRoverPhotos } = state
 
+    let mappedRovers;
+
     if (rovers.length === 0) {
         getRovers(store);
+    } else {
+        mappedRovers = rovers.toJS();
     }
-
-    console.log(state);
 
     return `
         <header>
@@ -40,14 +42,16 @@ const App = (state) => {
                 <section class="control-panel">
                     <ul class="rover-list">
                         <li class="rover-item" onclick="setActiveRover(false)">Apod</li>
-                        ${createRoverList(rovers)}
+                        ${createRoverList(mappedRovers)}
                     </ul>
                 </section>
                 <section class="info-panel">
                     <h3>Selection: ${activeRover ? activeRover.name : 'APOD!'}</h3>
                     ${renderStats(activeRover)}
                     <br>
-                    ${activeRover ? renderPhotos(activeRoverPhotos) : ImageOfTheDay(apod)}
+                    <div class="photo-wrapper">
+                        ${activeRover ? renderPhotos(activeRoverPhotos) : ImageOfTheDay(apod)}
+                    </div>
                 </section>
             </div>
         </main>
@@ -81,13 +85,10 @@ const ImageOfTheDay = (apod) => {
     // If image does not already exist, or it is not from today -- request it again
     const today = new Date()
     const photodate = new Date(apod.date)
-    // console.log(photodate.getDate(), today.getDate());
 
-    // console.log(photodate.getDate() === today.getDate());
     if (!apod || apod.date === today.getDate() ) {
         getImageOfTheDay(store)
     }
-
 
     // check if the photo of the day is actually type video!
     if (apod.media_type === "video") {
@@ -98,8 +99,9 @@ const ImageOfTheDay = (apod) => {
         `)
     } else {
         return (`
-            <img src="${apod.image.url}" height="350px" width="100%" />
-            <p>${apod.image.explanation}</p>
+            <img src="${apod?.image?.url}" width="100%" />
+            <br>
+            <p>${apod?.image?.explanation}</p>
         `)
     }
 }
@@ -120,7 +122,13 @@ const renderPhotos = (photos) => {
     let photoList = ``;
 
     photos?.photos?.map((photo) => {
-        photoList += `<img src="${photo.img_src}" height="350px" width="100%" />`
+        console.log(photo);
+        photoList += `
+            <div class="single-photo-wrapper">
+                <p>This photo was taken on ${photo.earth_date}</p>
+                <img src="${photo.img_src}" class="rover-photo" style="border-radius: 10px" />
+            </div>
+        `
     })
 
     return photoList;
@@ -129,7 +137,7 @@ const renderPhotos = (photos) => {
 const createRoverList = (rovers) => {
     let roverList = ``;
 
-    rovers?.rovers?.map((rover) => {
+    rovers?.map((rover) => {
         roverList += `<li class="rover-item rover-item--non-apod" onclick="setActiveRover('${rover.name}')">${rover.name}</li>`;
     })
 
@@ -137,16 +145,16 @@ const createRoverList = (rovers) => {
 }
 
 const setActiveRover = (clickedRover) => {
+    const mappedRovers = store?.rovers.toJS()
 
     if (clickedRover !== false) {
-        const matchedName = store?.rovers?.rovers?.filter(rover => {
+        const matchedName = mappedRovers.filter(rover => {
             return rover.name === clickedRover;
         })
-        
 
         const activeRover = matchedName[0];
 
-        getRoverPhotos(activeRover.name.toLowerCase(), activeRover.max_date)
+        getRoverPhotos(activeRover?.name.toLowerCase(), activeRover.max_date)
     
         updateStore(store, {activeRover})
     } else {
@@ -158,30 +166,28 @@ const setActiveRover = (clickedRover) => {
 
 // ------------------------------------------------------  API CALLS
 
-// Example API call
+// GET IMAGE OF THE DAY
 const getImageOfTheDay = (state) => {
     let { apod } = state
 
     fetch(`http://localhost:3000/apod`)
         .then(res => res.json())
         .then(apod => updateStore(store, { apod }))
-
-    // return data
 }
 
-const getRovers = (state) => {
-    let { rovers } = state
-
+const getRovers = () => {
     fetch(`http://localhost:3000/rovers`)
         .then(res => res.json())
-        .then(rovers => updateStore(store, {rovers}))
+        .then(data => {
+            const mappedRovers = {
+                rovers: Immutable.List(data.rovers)
+            }
 
-    // return data
+            updateStore(store, mappedRovers)
+        })
 }
 
-/**
- * High order function to get rover photos
- */
+// get rover photos
  const getRoverPhotos = (roverName, maxDate) => {
     fetch(`http://localhost:3000/rovers/${roverName}?max_date=${maxDate}`)
       .then(res => res.json())

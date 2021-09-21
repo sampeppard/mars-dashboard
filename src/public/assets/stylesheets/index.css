@@ -86,6 +86,17 @@ ul {
   margin-bottom: 20px;
 }
 
+.photo-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.single-photo-wrapper {
+  width: 100%;
+  margin-bottom: 15px;
+}
+
 footer {
   /* footer styles */
 }
@@ -103,6 +114,14 @@ footer {
 
   .info-panel {
     width: 72%;
+  }
+
+  .single-photo-wrapper {
+    width: 45%;
+  }
+
+  .rover-photo {
+    width: 100%;
   }
 }
 

@@ -37,12 +37,9 @@ app.get('/rovers', async (req, res) => {
 
 app.get('/rovers/:name', async (req, res) => {
     try {
-        console.log(req);
-        const cDate = req.query.max_date
-        const url = `https://api.nasa.gov/mars-photos/api/v1/rovers/${req.params.name}/photos?earth_date=${cDate}&api_key=${process.env.API_KEY}`
-        let image = await fetch(url)
-        image = await image.json();
-        res.send(image)
+        let roverPhotos = await fetch(`https://api.nasa.gov/mars-photos/api/v1/rovers/${req.params.name}/photos?earth_date=${req.query.max_date}&api_key=${process.env.API_KEY}`)
+            .then(res => res.json)
+        res.send(roverPhotos)
     } catch (err) {
         console.log('error:', err);
     }
