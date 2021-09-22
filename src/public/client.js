@@ -188,8 +188,8 @@ const getRovers = () => {
 }
 
 // get rover photos
- const getRoverPhotos = (roverName, maxDate) => {
-    fetch(`http://localhost:3000/rovers/${roverName}?max_date=${maxDate}`)
-      .then(res => res.json())
-      .then(activeRoverPhotos => updateStore(store, {activeRoverPhotos}))
-  }
+const getRoverPhotos = (roverName, maxDate) => {
+fetch(`http://localhost:3000/rovers/${roverName}?max_date=${maxDate}`)
+    .then(res => res.json())
+    .then(activeRoverPhotos => updateStore(store, {activeRoverPhotos}))
+}
