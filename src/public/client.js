@@ -21,14 +21,14 @@ const render = async (root, state) => {
 
 // create content
 const App = (state) => {
-    let { rovers, apod, activeRover, activeRoverPhotos } = state
+    let { rovers, apod, selectedRover, recentRoverPhotos } = state
 
     let mappedRovers;
 
     if (rovers.length === 0) {
-        getRovers(store);
+        getRovers(mapRoverData);
     } else {
-        mappedRovers = rovers.toJS();
+        mappedRovers = rovers?.toJS();
     }
 
     return `
@@ -37,7 +37,7 @@ const App = (state) => {
             <p>a list of current and former NASA Mars rovers</p>
         </header>
         <main class="rendered-main">
-            ${Greeting(store.user.name)}
+            <h2>Select a rover or APOD!</h2>
             <div class="panels">
                 <section class="control-panel">
                     <ul class="rover-list">
@@ -46,11 +46,11 @@ const App = (state) => {
                     </ul>
                 </section>
                 <section class="info-panel">
-                    <h3>Selection: ${activeRover ? activeRover.name : 'APOD!'}</h3>
-                    ${renderStats(activeRover)}
+                    <h3>Selection: ${selectedRover ? selectedRover.name : 'APOD!'}</h3>
+                    ${renderStats(selectedRover)}
                     <br>
                     <div class="photo-wrapper">
-                        ${activeRover ? renderPhotos(activeRoverPhotos) : ImageOfTheDay(apod)}
+                        ${selectedRover ? renderRecentRoverPhotos(recentRoverPhotos, mapPhotoData) : ImageOfTheDay(apod)}
                     </div>
                 </section>
             </div>
@@ -65,19 +65,6 @@ window.addEventListener('load', () => {
 })
 
 // ------------------------------------------------------  COMPONENTS
-
-// Pure function that renders conditional information -- THIS IS JUST AN EXAMPLE, you can delete it.
-const Greeting = (name) => {
-    if (name) {
-        return `
-            <h2>select a rover or </h2>
-        `
-    }
-
-    return `
-        <h1>Hello!</h1>
-    `
-}
 
 // Example of a pure function that renders infomation requested from the backend
 const ImageOfTheDay = (apod) => {
@@ -106,32 +93,63 @@ const ImageOfTheDay = (apod) => {
     }
 }
 
-const renderStats = (activeRover) => {
-    if (activeRover) {
+// Higher order function that returns a switch case function for rover stats
+const renderStat = (statType) => {
+    return (selectedRover) => {
+        switch (statType) {
+            case 'launch-date':
+                return `<p>Launch Date: ${selectedRover?.launch_date}</p>`
+            case 'landing-date':
+                return `<p>Landing Date: ${selectedRover?.landing_date}</p>`
+            case 'status':
+                return `<p>Status: ${selectedRover?.status}</p>`
+        }
+    }
+}
+
+const renderLaunchDate = renderStat('launch-date');
+const renderLandingDate = renderStat('landing-date');
+const renderStatus = renderStat('status');
+
+const renderStats = (selectedRover) => {
+    if (selectedRover) {
         return `
-            <p>Launch Date: ${activeRover?.launch_date}</p>
-            <p>Landing Date: ${activeRover?.landing_date}</p>
-            <p>Status: ${activeRover?.status}</p>
+            ${renderLaunchDate(selectedRover)}
+            ${renderLandingDate(selectedRover)}
+            ${renderStatus(selectedRover)}
         `
     } else {
         return `<p>APOD pic of the day!</p>`;
     }
 }
 
-const renderPhotos = (photos) => {
+const createPhoto = (photo) => {
+    return `
+        <div class="single-photo-wrapper">
+            <p>This photo was taken on ${photo.earth_date}</p>
+            <img src="${photo.img_src}" class="rover-photo" style="border-radius: 10px" />
+        </div>
+    `
+}
+
+// custom higher order function
+const mapPhotoData = (photos, callback) => {
+    
     let photoList = ``;
 
     photos?.photos?.map((photo) => {
-        console.log(photo);
-        photoList += `
-            <div class="single-photo-wrapper">
-                <p>This photo was taken on ${photo.earth_date}</p>
-                <img src="${photo.img_src}" class="rover-photo" style="border-radius: 10px" />
-            </div>
-        `
-    })
+        photoList += callback(photo)
+    });
 
     return photoList;
+}
+
+// custom higher order function
+const renderRecentRoverPhotos = (photos, callback) => {
+
+    const recentPhotos = callback(photos, createPhoto);
+
+    return recentPhotos;
 }
 
 const createRoverList = (rovers) => {
@@ -148,20 +166,29 @@ const setActiveRover = (clickedRover) => {
     const mappedRovers = store?.rovers.toJS()
 
     if (clickedRover !== false) {
+        // standard higher order function
         const matchedName = mappedRovers.filter(rover => {
             return rover.name === clickedRover;
         })
 
-        const activeRover = matchedName[0];
+        const selectedRover = matchedName[0];
 
-        getRoverPhotos(activeRover?.name.toLowerCase(), activeRover.max_date)
+        getRoverPhotos(selectedRover?.name.toLowerCase(), selectedRover.max_date)
     
-        updateStore(store, {activeRover})
+        updateStore(store, {selectedRover})
     } else {
-        const activeRover = clickedRover;
+        const selectedRover = clickedRover;
 
-        updateStore(store, {activeRover})
+        updateStore(store, {selectedRover})
     }
+}
+
+const mapRoverData = (data) => {
+    const mappedRovers = {
+        rovers: Immutable.List(data.rovers)
+    }
+
+    updateStore(store, mappedRovers)
 }
 
 // ------------------------------------------------------  API CALLS
@@ -175,15 +202,13 @@ const getImageOfTheDay = (state) => {
         .then(apod => updateStore(store, { apod }))
 }
 
-const getRovers = () => {
+// Higher-order function to get rovers
+const getRovers = (callback) => {
+    
     fetch(`http://localhost:3000/rovers`)
         .then(res => res.json())
         .then(data => {
-            const mappedRovers = {
-                rovers: Immutable.List(data.rovers)
-            }
-
-            updateStore(store, mappedRovers)
+            return callback(data);
         })
 }
 
@@ -191,5 +216,5 @@ const getRovers = () => {
 const getRoverPhotos = (roverName, maxDate) => {
 fetch(`http://localhost:3000/rovers/${roverName}?max_date=${maxDate}`)
     .then(res => res.json())
-    .then(activeRoverPhotos => updateStore(store, {activeRoverPhotos}))
+    .then(recentRoverPhotos => updateStore(store, {recentRoverPhotos}))
 }
