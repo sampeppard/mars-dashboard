@@ -41,7 +41,7 @@ const App = (state) => {
             <div class="panels">
                 <section class="control-panel">
                     <ul class="rover-list">
-                        <li class="rover-item" onclick="setActiveRover(false)">Apod</li>
+                        ${renderApodListItem()}
                         ${createRoverList(mappedRovers)}
                     </ul>
                 </section>
@@ -152,11 +152,24 @@ const renderRecentRoverPhotos = (photos, callback) => {
     return recentPhotos;
 }
 
+const renderListItem = (itemType) => {
+    return (rover) => {
+        if (itemType === 'rover') {
+            return `<li class="rover-item rover-item--non-apod" onclick="setActiveRover('${rover.name}')">${rover.name}</li>`
+        } else {
+            return `<li class="rover-item" onclick="setActiveRover(false)">Apod</li>`
+        }
+    }
+}
+
+const renderRoverListItem = renderListItem('rover');
+const renderApodListItem = renderListItem('apod');
+
 const createRoverList = (rovers) => {
     let roverList = ``;
 
     rovers?.map((rover) => {
-        roverList += `<li class="rover-item rover-item--non-apod" onclick="setActiveRover('${rover.name}')">${rover.name}</li>`;
+        roverList += renderRoverListItem(rover);
     })
 
     return roverList;
